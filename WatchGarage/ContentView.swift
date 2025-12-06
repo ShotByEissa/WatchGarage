@@ -2,25 +2,6 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab = 0
-    
-    var body: some View {
-        TabView(selection: $selectedTab) {
-            BatteryTrackerView()
-                .tabItem {
-                    Label("Battery", systemImage: "bolt.fill")
-                }
-                .tag(0)
-            
-            MaintenanceTrackerView()
-                .tabItem {
-                    Label("Service", systemImage: "wrench.and.screwdriver.fill")
-                }
-                .tag(1)
-        }
-    }
-}
-
-struct BatteryTrackerView: View {
     @State private var watches: [Watch] = [
         Watch(id: 1, name: "Seiko SKX007", model: "Diver's Watch",
               firstWear: Calendar.current.date(byAdding: .day, value: -585, to: Date())!,
@@ -36,6 +17,31 @@ struct BatteryTrackerView: View {
               batteryLife: 730)
     ]
     
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            HomeView(watches: $watches)
+                .tabItem {
+                    Label("Home", systemImage: "house.fill")
+                }
+                .tag(0)
+            
+            BatteryTrackerView(watches: $watches)
+                .tabItem {
+                    Label("Battery", systemImage: "bolt.fill")
+                }
+                .tag(1)
+            
+            MaintenanceTrackerView()
+                .tabItem {
+                    Label("Service", systemImage: "wrench.and.screwdriver.fill")
+                }
+                .tag(2)
+        }
+    }
+}
+
+struct BatteryTrackerView: View {
+    @Binding var watches: [Watch]
     @State private var showingAddWatch = false
     
     var body: some View {
