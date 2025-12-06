@@ -2,24 +2,12 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab = 0
-    @State private var watches: [Watch] = [
-        Watch(id: 1, name: "Seiko SKX007", model: "Diver's Watch",
-              firstWear: Calendar.current.date(byAdding: .day, value: -585, to: Date())!,
-              batteryLife: 730),
-        Watch(id: 2, name: "Casio G-Shock", model: "DW-5600E",
-              firstWear: Calendar.current.date(byAdding: .day, value: -685, to: Date())!,
-              batteryLife: 730),
-        Watch(id: 3, name: "Timex Weekender", model: "Chronograph",
-              firstWear: Calendar.current.date(byAdding: .day, value: -150, to: Date())!,
-              batteryLife: 730),
-        Watch(id: 4, name: "Citizen Eco-Drive", model: "BM8180-03E",
-              firstWear: Calendar.current.date(byAdding: .day, value: -718, to: Date())!,
-              batteryLife: 730)
-    ]
+    @State private var showingAddWatch = false
+    @State private var watches: [Watch] = []
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView(watches: $watches)
+            HomeView(watches: $watches, showingAddWatch: $showingAddWatch)
                 .tabItem {
                     Label("Home", systemImage: "house.fill")
                 }
@@ -37,12 +25,14 @@ struct ContentView: View {
                 }
                 .tag(2)
         }
+        .sheet(isPresented: $showingAddWatch) {
+            AddWatchView(watches: $watches)
+        }
     }
 }
 
 struct BatteryTrackerView: View {
     @Binding var watches: [Watch]
-    @State private var showingAddWatch = false
     @State private var editingWatchId: Int?
     
     var body: some View {
@@ -78,16 +68,6 @@ struct BatteryTrackerView: View {
                 }
             }
             .navigationTitle("Battery Tracker")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingAddWatch = true }) {
-                        Image(systemName: "plus")
-                    }
-                }
-            }
-            .sheet(isPresented: $showingAddWatch) {
-                AddWatchView(watches: $watches)
-            }
             .sheet(item: Binding(
                 get: { editingWatchId.map { WatchIdentifier(id: $0) } },
                 set: { editingWatchId = $0?.id }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @Binding var watches: [Watch]
+    @Binding var showingAddWatch: Bool
     
     var nextBatteryWatch: Watch? {
         watches.sorted(by: { $0.daysRemaining < $1.daysRemaining }).first
@@ -11,15 +12,23 @@ struct HomeView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Watch Count Card
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Total Watches in the Collection")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        Text("\(watches.count)")
-                            .font(.system(size: 48, weight: .bold))
+                    // Watch Count Card with Add Button
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Total Watches")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Text("\(watches.count)")
+                                .font(.system(size: 48, weight: .bold))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        Button(action: { showingAddWatch = true }) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 44))
+                                .foregroundColor(.blue)
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                     .background(Color(.systemGray6))
                     .cornerRadius(12)
@@ -122,9 +131,5 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView(watches: .constant([
-        Watch(id: 1, name: "Seiko SKX007", model: "Diver's Watch",
-              firstWear: Calendar.current.date(byAdding: .day, value: -585, to: Date())!,
-              batteryLife: 730)
-    ]))
+    HomeView(watches: .constant([]), showingAddWatch: .constant(false))
 }
