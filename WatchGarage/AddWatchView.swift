@@ -4,52 +4,54 @@ struct AddWatchView: View {
     @Environment(\.dismiss) var dismiss
     @Binding var watches: [Watch]
     
-    @State private var name = ""
+    @State private var brand = ""
     @State private var model = ""
-    @State private var batteryInstalled = Date()
-    @State private var batteryLife = 730
+    @State private var firstWear = Date()
     
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Watch Details")) {
-                    TextField("Name", text: $name)
+                Section(header: Text("WATCH DETAILS")) {
+                    TextField("Brand", text: $brand)
                     TextField("Model", text: $model)
                 }
                 
-                Section(header: Text("Battery Information")) {
-                    DatePicker("Battery Installed", selection: $batteryInstalled, displayedComponents: .date)
-                    
-                    Stepper("Battery Life: \(batteryLife) days", value: $batteryLife, in: 30...3650, step: 30)
+                Section(header: Text("BATTERY INFO")) {
+                    DatePicker("First Wear", selection: $firstWear, displayedComponents: .date)
+                }
+                
+                Section {
+                    Text("Battery countdown starts from the first wear date. Standard battery life is 24 months.")
+                        .font(.caption)
+                        .foregroundColor(.gray)
                 }
             }
             .navigationTitle("Add Watch")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
-                
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Add") {
                         addWatch()
                     }
-                    .disabled(name.isEmpty)
+                    .disabled(brand.isEmpty || model.isEmpty)
                 }
             }
         }
     }
     
-    private func addWatch() {
+    func addWatch() {
         let newId = (watches.map { $0.id }.max() ?? 0) + 1
         let newWatch = Watch(
             id: newId,
-            name: name,
+            name: brand,
             model: model,
-            batteryInstalled: batteryInstalled,
-            batteryLife: batteryLife
+            firstWear: firstWear,
+            batteryLife: 730
         )
         watches.append(newWatch)
         dismiss()
