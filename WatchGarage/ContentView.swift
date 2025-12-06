@@ -43,6 +43,7 @@ struct ContentView: View {
 struct BatteryTrackerView: View {
     @Binding var watches: [Watch]
     @State private var showingAddWatch = false
+    @State private var editingWatchId: Int?
     
     var body: some View {
         NavigationView {
@@ -66,6 +67,14 @@ struct BatteryTrackerView: View {
                             .tint(statusColor(watch.status))
                     }
                     .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+                    .contextMenu {
+                        Button {
+                            editingWatchId = watch.id
+                        } label: {
+                            Label("Edit Watch", systemImage: "pencil")
+                        }
+                    }
                 }
             }
             .navigationTitle("Battery Tracker")
@@ -78,6 +87,12 @@ struct BatteryTrackerView: View {
             }
             .sheet(isPresented: $showingAddWatch) {
                 AddWatchView(watches: $watches)
+            }
+            .sheet(item: Binding(
+                get: { editingWatchId.map { WatchIdentifier(id: $0) } },
+                set: { editingWatchId = $0?.id }
+            )) { identifier in
+                EditWatchView(watches: $watches, watchId: identifier.id)
             }
         }
     }
@@ -115,6 +130,10 @@ struct BatteryTrackerView: View {
         case .good: return .green
         }
     }
+}
+
+struct WatchIdentifier: Identifiable {
+    let id: Int
 }
 
 struct MaintenanceTrackerView: View {

@@ -13,7 +13,7 @@ struct HomeView: View {
                 VStack(spacing: 20) {
                     // Watch Count Card
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Total Watches")
+                        Text("Total Watches in the Collection")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         Text("\(watches.count)")

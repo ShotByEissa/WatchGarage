@@ -23,6 +23,16 @@ struct Watch: Identifiable {
     }
 }
 
+extension Watch: Hashable {
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: Watch, rhs: Watch) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
 enum BatteryStatus {
     case critical, warning, caution, good
     
