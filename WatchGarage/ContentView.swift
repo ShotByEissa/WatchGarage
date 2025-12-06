@@ -66,6 +66,25 @@ struct BatteryTrackerView: View {
                         }
                     }
                 }
+                
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "info.circle")
+                                .foregroundColor(.secondary)
+                            Text("About Battery Estimates")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Text("Battery life estimates are based on average global usage patterns. Actual battery life varies depending on how often you wear your watch, storage conditions, and other factors. These predictions are meant as helpful reminders, not guarantees.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 8)
+                }
             }
             .navigationTitle("Battery Tracker")
             .sheet(item: Binding(
