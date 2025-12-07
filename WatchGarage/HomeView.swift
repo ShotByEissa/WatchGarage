@@ -5,7 +5,14 @@ struct HomeView: View {
     @Binding var showingAddWatch: Bool
     
     var nextBatteryWatch: Watch? {
-        watches.sorted(by: { $0.daysRemaining < $1.daysRemaining }).first
+        watches
+            .filter { $0.movementType == .quartz }
+            .sorted(by: { $0.daysRemaining < $1.daysRemaining })
+            .first
+    }
+    
+    var nextServiceWatch: Watch? {
+        watches.sorted(by: { $0.serviceDaysRemaining < $1.serviceDaysRemaining }).first
     }
     
     var body: some View {
@@ -33,7 +40,7 @@ struct HomeView: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(12)
                     
-                    // Next Battery Replacement Card
+                    // Next Battery Replacement Card - Quartz Only
                     if let watch = nextBatteryWatch {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Next Battery Replacement")
@@ -63,29 +70,97 @@ struct HomeView: View {
                         .padding()
                         .background(Color(.systemGray6))
                         .cornerRadius(12)
-                    }
-                    
-                    // Next Service Card (Placeholder)
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Next Service")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        
-                        VStack(spacing: 8) {
-                            Image(systemName: "wrench.and.screwdriver")
-                                .font(.title)
-                                .foregroundColor(.secondary)
-                            Text("No service data yet")
+                    } else {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Next Battery Replacement")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
+                            
+                            VStack(spacing: 8) {
+                                Image(systemName: "battery.100")
+                                    .font(.title)
+                                    .foregroundColor(.secondary)
+                                Text("No quartz watches")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 20)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(12)
+                    
+                    // Next Service Card
+                    if let watch = nextServiceWatch {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Next Service")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(watch.name)
+                                    .font(.title3)
+                                    .fontWeight(.semibold)
+                                Text(watch.model)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            HStack {
+                                Text(formatTimeRemaining(watch.serviceDaysRemaining))
+                                    .font(.headline)
+                                    .foregroundColor(statusColor(watch.serviceStatus))
+                                Spacer()
+                                Image(systemName: "wrench.and.screwdriver")
+                                    .foregroundColor(statusColor(watch.serviceStatus))
+                            }
+                            .padding(.top, 4)
+                            
+                            HStack {
+                                Text(watch.movementType.rawValue)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                if let lastService = watch.lastServiceDate {
+                                    Text("Last: \(formatDate(lastService))")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text("Never serviced")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
+                    } else {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Next Service")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            VStack(spacing: 8) {
+                                Image(systemName: "wrench.and.screwdriver")
+                                    .font(.title)
+                                    .foregroundColor(.secondary)
+                                Text("No service data yet")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 20)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
+                    }
                     
                     Spacer()
                 }
@@ -118,6 +193,12 @@ struct HomeView: View {
         }
         
         return "\(years)yr \(months)mo"
+    }
+    
+    func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter.string(from: date)
     }
     
     func statusColor(_ status: BatteryStatus) -> Color {
