@@ -37,37 +37,39 @@ struct BatteryTrackerView: View {
     
     var body: some View {
         NavigationView {
-            List {
-                ForEach(watches.sorted(by: { $0.daysRemaining < $1.daysRemaining })) { watch in
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(watch.name)
-                                    .font(.headline)
-                                Text(watch.model)
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
+            ScrollView {
+                VStack(spacing: 16) {
+                    ForEach(watches.sorted(by: { $0.daysRemaining < $1.daysRemaining })) { watch in
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(watch.name)
+                                        .font(.headline)
+                                    Text(watch.model)
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Text(formatTimeRemaining(watch.daysRemaining))
+                                    .foregroundColor(statusColor(watch.status))
+                                    .fontWeight(.semibold)
                             }
-                            Spacer()
-                            Text(formatTimeRemaining(watch.daysRemaining))
-                                .foregroundColor(statusColor(watch.status))
-                                .fontWeight(.semibold)
+                            ProgressView(value: Double(watch.daysRemaining), total: Double(watch.batteryLife))
+                                .tint(statusColor(watch.status))
                         }
-                        ProgressView(value: Double(watch.daysRemaining), total: Double(watch.batteryLife))
-                            .tint(statusColor(watch.status))
-                    }
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
-                    .contextMenu {
-                        Button {
-                            editingWatchId = watch.id
-                        } label: {
-                            Label("Edit Watch", systemImage: "pencil")
+                        .padding()
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .cornerRadius(12)
+                        .contentShape(Rectangle())
+                        .contextMenu {
+                            Button {
+                                editingWatchId = watch.id
+                            } label: {
+                                Label("Edit Watch", systemImage: "pencil")
+                            }
                         }
                     }
-                }
-                
-                Section {
+                    
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 6) {
                             Image(systemName: "info.circle")
@@ -83,9 +85,13 @@ struct BatteryTrackerView: View {
                             .foregroundColor(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.vertical, 8)
+                    .padding()
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .cornerRadius(12)
                 }
+                .padding()
             }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Battery Tracker")
             .sheet(item: Binding(
                 get: { editingWatchId.map { WatchIdentifier(id: $0) } },
@@ -138,15 +144,26 @@ struct WatchIdentifier: Identifiable {
 struct MaintenanceTrackerView: View {
     var body: some View {
         NavigationView {
-            VStack {
-                Spacer()
-                Image(systemName: "wrench.and.screwdriver")
-                    .font(.largeTitle)
-                    .foregroundColor(.secondary)
-                Text("Coming Soon")
-                    .font(.title3)
-                    .foregroundColor(.secondary)
-                Spacer()
+            ZStack {
+                Color(.systemGroupedBackground)
+                    .ignoresSafeArea()
+                
+                VStack {
+                    Spacer()
+                    VStack(spacing: 16) {
+                        Image(systemName: "wrench.and.screwdriver")
+                            .font(.largeTitle)
+                            .foregroundColor(.secondary)
+                        Text("Coming Soon")
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(40)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .cornerRadius(12)
+                    Spacer()
+                }
+                .padding()
             }
             .navigationTitle("Service History")
         }
