@@ -27,25 +27,25 @@ struct EditWatchView: View {
                 Section(header: Text("WATCH DETAILS")) {
                     HStack {
                         Text("Brand")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         Spacer()
                         Text(watch?.name ?? "")
                     }
                     HStack {
                         Text("Model")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         Spacer()
                         Text(watch?.model ?? "")
                     }
                     HStack {
                         Text("Movement")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         Spacer()
                         Text(watch?.movementType.rawValue ?? "")
                     }
                     HStack {
                         Text("First Wear")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         Spacer()
                         if let firstWear = watch?.firstWear {
                             Text(firstWear, style: .date)
@@ -62,7 +62,7 @@ struct EditWatchView: View {
                         }) {
                             HStack {
                                 Image(systemName: "plus.circle.fill")
-                                    .foregroundColor(.blue)
+                                    .foregroundStyle(.blue)
                                 Text("Log Battery Replacement")
                             }
                         }
@@ -73,7 +73,7 @@ struct EditWatchView: View {
                                     Text(date, style: .date)
                                     Spacer()
                                     Text(date, style: .time)
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                             .onDelete { indexSet in
@@ -81,7 +81,7 @@ struct EditWatchView: View {
                             }
                         } else {
                             Text("No battery replacements logged")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .font(.subheadline)
                         }
                     }
@@ -95,7 +95,7 @@ struct EditWatchView: View {
                     }) {
                         HStack {
                             Image(systemName: "plus.circle.fill")
-                                .foregroundColor(.blue)
+                                .foregroundStyle(.blue)
                             Text("Log Service")
                         }
                     }
@@ -106,7 +106,7 @@ struct EditWatchView: View {
                                 Text(date, style: .date)
                                 Spacer()
                                 Text(date, style: .time)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                         .onDelete { indexSet in
@@ -114,7 +114,7 @@ struct EditWatchView: View {
                         }
                     } else {
                         Text("No services logged")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .font(.subheadline)
                     }
                 }

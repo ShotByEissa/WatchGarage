@@ -18,100 +18,119 @@ struct WatchTrackerView: View {
     @State private var editingWatchId: Int?
     
     var body: some View {
-        NavigationView {
-            List {
-                ForEach(watches.sorted(by: {
-                    min($0.daysUntilBattery, $0.daysUntilService) < min($1.daysUntilBattery, $1.daysUntilService)
-                })) { watch in
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            VStack(alignment: .leading) {
+        NavigationStack {
+            ZStack {
+                List {
+                    ForEach(watches.sorted(by: {
+                        min($0.daysUntilBattery, $0.daysUntilService) < min($1.daysUntilBattery, $1.daysUntilService)
+                    })) { watch in
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack {
                                 Text(watch.name)
                                     .font(.headline)
                                 Text(watch.model)
                                     .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
                             }
-                            Spacer()
-                        }
-                        
-                        // Battery Progress (only for quartz)
-                        if watch.movementType == .quartz {
-                            VStack(alignment: .leading, spacing: 4) {
+                            
+                            // Battery Progress (only for quartz)
+                            if watch.movementType == .quartz {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack {
+                                        Text("Battery")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
+                                        Text(formatTimeRemaining(watch.daysUntilBattery))
+                                            .font(.caption)
+                                            .foregroundStyle(statusColor(watch.batteryStatus))
+                                            .fontWeight(.semibold)
+                                    }
+                                    ProgressView(value: max(0, Double(watch.daysUntilBattery)), total: Double(watch.batteryLife))
+                                        .tint(statusColor(watch.batteryStatus))
+                                        .scaleEffect(x: 1, y: 2, anchor: .center)
+                                }
+                            }
+                            
+                            // Service Progress (all watches)
+                            VStack(alignment: .leading, spacing: 6) {
                                 HStack {
-                                    Text("Battery")
+                                    Text("Service")
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                     Spacer()
-                                    Text(formatTimeRemaining(watch.daysUntilBattery))
+                                    Text(formatTimeRemaining(watch.daysUntilService))
                                         .font(.caption)
-                                        .foregroundColor(statusColor(watch.batteryStatus))
+                                        .foregroundStyle(statusColor(watch.serviceStatus))
                                         .fontWeight(.semibold)
                                 }
-                                ProgressView(value: max(0, Double(watch.daysUntilBattery)), total: Double(watch.batteryLife))
-                                    .tint(statusColor(watch.batteryStatus))
+                                ProgressView(value: max(0, Double(watch.daysUntilService)), total: Double(watch.serviceInterval))
+                                    .tint(statusColor(watch.serviceStatus))
+                                    .scaleEffect(x: 1, y: 2, anchor: .center)
                             }
                         }
-                        
-                        // Service Progress (all watches)
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text("Service")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                Text(formatTimeRemaining(watch.daysUntilService))
-                                    .font(.caption)
-                                    .foregroundColor(statusColor(watch.serviceStatus))
+                        .padding(.vertical, 12)
+                        .contentShape(Rectangle())
+                        .contextMenu {
+                            Button {
+                                editingWatchId = watch.id
+                            } label: {
+                                Label("Edit Watch", systemImage: "pencil")
+                            }
+                        }
+                    }
+                    
+                    Section {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "info.circle")
+                                    .foregroundStyle(.secondary)
+                                Text("About Maintenance Estimates")
+                                    .font(.subheadline)
                                     .fontWeight(.semibold)
+                                    .foregroundStyle(.secondary)
                             }
-                            ProgressView(value: max(0, Double(watch.daysUntilService)), total: Double(watch.serviceInterval))
-                                .tint(statusColor(watch.serviceStatus))
+                            
+                            Text("Battery and service estimates are based on manufacturer recommendations and average usage patterns. Actual intervals vary by wear frequency, storage conditions, and individual watch characteristics. These are helpful reminders, not guarantees.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
+                        .padding(.vertical, 8)
                     }
-                    .padding(.vertical, 8)
-                    .contentShape(Rectangle())
-                    .contextMenu {
-                        Button {
-                            editingWatchId = watch.id
-                        } label: {
-                            Label("Edit Watch", systemImage: "pencil")
-                        }
-                    }
+                    
+                    // Spacer for floating button
+                    Color.clear
+                        .frame(height: 80)
+                        .listRowBackground(Color.clear)
+                }
+                .navigationTitle("Watch Garage")
+                .sheet(item: Binding(
+                    get: { editingWatchId.map { WatchIdentifier(id: $0) } },
+                    set: { editingWatchId = $0?.id }
+                )) { identifier in
+                    EditWatchView(watches: $watches, watchId: identifier.id)
                 }
                 
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "info.circle")
-                                .foregroundColor(.secondary)
-                            Text("About Maintenance Estimates")
-                                .font(.subheadline)
+                // Floating Add Button
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Button(action: { showingAddWatch = true }) {
+                            Image(systemName: "plus")
+                                .font(.title2)
                                 .fontWeight(.semibold)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.white)
+                                .frame(width: 60, height: 60)
+                                .background(Circle().fill(.orange))
+                                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
                         }
-                        
-                        Text("Battery and service estimates are based on manufacturer recommendations and average usage patterns. Actual intervals vary by wear frequency, storage conditions, and individual watch characteristics. These are helpful reminders, not guarantees.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.vertical, 8)
-                }
-            }
-            .navigationTitle("Watch Garage")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingAddWatch = true }) {
-                        Image(systemName: "plus")
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 20)
                     }
                 }
-            }
-            .sheet(item: Binding(
-                get: { editingWatchId.map { WatchIdentifier(id: $0) } },
-                set: { editingWatchId = $0?.id }
-            )) { identifier in
-                EditWatchView(watches: $watches, watchId: identifier.id)
             }
         }
     }

@@ -27,7 +27,7 @@ struct AddWatchView: View {
                     
                     Text(movementType.servicingMessage)
                         .font(.caption)
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.secondary)
                 }
                 
                 Section(header: Text("BATTERY INFO")) {
@@ -37,7 +37,7 @@ struct AddWatchView: View {
                 Section {
                     Text("Battery countdown starts from the first wear date. Standard battery life is 24 months.")
                         .font(.caption)
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.secondary)
                 }
             }
             .navigationTitle("Add Watch")
