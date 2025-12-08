@@ -71,6 +71,10 @@ struct AddWatchView: View {
             serviceLog: []
         )
         watches.append(newWatch)
+        
+        // Schedule notifications for the new watch
+        NotificationManager.shared.scheduleNotifications(for: newWatch)
+        
         dismiss()
     }
 }

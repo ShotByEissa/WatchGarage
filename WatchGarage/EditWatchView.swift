@@ -169,6 +169,8 @@ struct EditWatchView: View {
                             Button("Add") {
                                 if let index = watchIndex {
                                     watches[index].batteryLog.append(newBatteryDate)
+                                    // Reschedule notifications with updated battery log
+                                    NotificationManager.shared.scheduleNotifications(for: watches[index])
                                     refreshTrigger = UUID()
                                 }
                                 showingBatteryDatePicker = false
@@ -198,6 +200,8 @@ struct EditWatchView: View {
                             Button("Add") {
                                 if let index = watchIndex {
                                     watches[index].serviceLog.append(newServiceDate)
+                                    // Reschedule notifications with updated service log
+                                    NotificationManager.shared.scheduleNotifications(for: watches[index])
                                     refreshTrigger = UUID()
                                 }
                                 showingServiceDatePicker = false
@@ -219,6 +223,8 @@ struct EditWatchView: View {
                 watches[wIndex].batteryLog.remove(at: logIndex)
             }
         }
+        // Reschedule notifications after deleting log entry
+        NotificationManager.shared.scheduleNotifications(for: watches[wIndex])
         refreshTrigger = UUID()
     }
     
@@ -231,11 +237,15 @@ struct EditWatchView: View {
                 watches[wIndex].serviceLog.remove(at: logIndex)
             }
         }
+        // Reschedule notifications after deleting log entry
+        NotificationManager.shared.scheduleNotifications(for: watches[wIndex])
         refreshTrigger = UUID()
     }
     
     func deleteWatch() {
         guard let index = watchIndex else { return }
+        // Cancel all notifications for this watch before deleting
+        NotificationManager.shared.cancelNotifications(for: watches[index])
         watches.remove(at: index)
         dismiss()
     }
