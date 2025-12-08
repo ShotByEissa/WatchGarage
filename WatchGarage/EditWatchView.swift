@@ -5,46 +5,118 @@ struct EditWatchView: View {
     @Binding var watches: [Watch]
     let watchId: Int
     
-    @State private var brand: String
-    @State private var model: String
-    @State private var firstWear: Date
     @State private var showingDeleteAlert = false
+    @State private var showingBatteryDatePicker = false
+    @State private var showingServiceDatePicker = false
+    @State private var newBatteryDate = Date()
+    @State private var newServiceDate = Date()
+    @State private var refreshTrigger = UUID()
     
     private var watchIndex: Int? {
         watches.firstIndex(where: { $0.id == watchId })
     }
     
-    init(watches: Binding<[Watch]>, watchId: Int) {
-        self._watches = watches
-        self.watchId = watchId
-        
-        if let watch = watches.wrappedValue.first(where: { $0.id == watchId }) {
-            _brand = State(initialValue: watch.name)
-            _model = State(initialValue: watch.model)
-            _firstWear = State(initialValue: watch.firstWear)
-        } else {
-            _brand = State(initialValue: "")
-            _model = State(initialValue: "")
-            _firstWear = State(initialValue: Date())
-        }
+    private var watch: Watch? {
+        guard let index = watchIndex else { return nil }
+        return watches[index]
     }
     
     var body: some View {
         NavigationView {
             Form {
                 Section(header: Text("WATCH DETAILS")) {
-                    TextField("Brand", text: $brand)
-                    TextField("Model", text: $model)
+                    HStack {
+                        Text("Brand")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(watch?.name ?? "")
+                    }
+                    HStack {
+                        Text("Model")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(watch?.model ?? "")
+                    }
+                    HStack {
+                        Text("Movement")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(watch?.movementType.rawValue ?? "")
+                    }
+                    HStack {
+                        Text("First Wear")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        if let firstWear = watch?.firstWear {
+                            Text(firstWear, style: .date)
+                        }
+                    }
                 }
                 
-                Section(header: Text("BATTERY INFO")) {
-                    DatePicker("Last Battery Replacement", selection: $firstWear, displayedComponents: .date)
+                // Battery Log - Only for Quartz
+                if watch?.movementType == .quartz {
+                    Section(header: Text("BATTERY LOG")) {
+                        Button(action: {
+                            newBatteryDate = Date()
+                            showingBatteryDatePicker = true
+                        }) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundColor(.blue)
+                                Text("Log Battery Replacement")
+                            }
+                        }
+                        
+                        if let batteryLog = watch?.batteryLog, !batteryLog.isEmpty {
+                            ForEach(Array(batteryLog.sorted(by: >).enumerated()), id: \.offset) { index, date in
+                                HStack {
+                                    Text(date, style: .date)
+                                    Spacer()
+                                    Text(date, style: .time)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .onDelete { indexSet in
+                                deleteBatteryLog(at: indexSet)
+                            }
+                        } else {
+                            Text("No battery replacements logged")
+                                .foregroundColor(.secondary)
+                                .font(.subheadline)
+                        }
+                    }
                 }
                 
-                Section {
-                    Text("This is when you last replaced the battery. Standard battery life is 24 months.")
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                // Service Log - For ALL watches
+                Section(header: Text("SERVICE LOG")) {
+                    Button(action: {
+                        newServiceDate = Date()
+                        showingServiceDatePicker = true
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundColor(.blue)
+                            Text("Log Service")
+                        }
+                    }
+                    
+                    if let serviceLog = watch?.serviceLog, !serviceLog.isEmpty {
+                        ForEach(Array(serviceLog.sorted(by: >).enumerated()), id: \.offset) { index, date in
+                            HStack {
+                                Text(date, style: .date)
+                                Spacer()
+                                Text(date, style: .time)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .onDelete { indexSet in
+                            deleteServiceLog(at: indexSet)
+                        }
+                    } else {
+                        Text("No services logged")
+                            .foregroundColor(.secondary)
+                            .font(.subheadline)
+                    }
                 }
                 
                 Section {
@@ -59,19 +131,14 @@ struct EditWatchView: View {
                     }
                 }
             }
-            .navigationTitle("Edit Watch")
+            .id(refreshTrigger)
+            .navigationTitle("Watch Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button("Done") {
                         dismiss()
                     }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        saveChanges()
-                    }
-                    .disabled(brand.isEmpty || model.isEmpty)
                 }
             }
             .alert("Delete Watch?", isPresented: $showingDeleteAlert) {
@@ -82,15 +149,89 @@ struct EditWatchView: View {
             } message: {
                 Text("This action cannot be undone.")
             }
+            .sheet(isPresented: $showingBatteryDatePicker) {
+                NavigationView {
+                    VStack {
+                        DatePicker("Battery Replacement Date", selection: $newBatteryDate, displayedComponents: [.date])
+                            .datePickerStyle(.graphical)
+                            .padding()
+                        Spacer()
+                    }
+                    .navigationTitle("Log Battery Replacement")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Cancel") {
+                                showingBatteryDatePicker = false
+                            }
+                        }
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Add") {
+                                if let index = watchIndex {
+                                    watches[index].batteryLog.append(newBatteryDate)
+                                    refreshTrigger = UUID()
+                                }
+                                showingBatteryDatePicker = false
+                            }
+                        }
+                    }
+                }
+                .presentationDetents([.medium])
+            }
+            .sheet(isPresented: $showingServiceDatePicker) {
+                NavigationView {
+                    VStack {
+                        DatePicker("Service Date", selection: $newServiceDate, displayedComponents: [.date])
+                            .datePickerStyle(.graphical)
+                            .padding()
+                        Spacer()
+                    }
+                    .navigationTitle("Log Service")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Cancel") {
+                                showingServiceDatePicker = false
+                            }
+                        }
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Add") {
+                                if let index = watchIndex {
+                                    watches[index].serviceLog.append(newServiceDate)
+                                    refreshTrigger = UUID()
+                                }
+                                showingServiceDatePicker = false
+                            }
+                        }
+                    }
+                }
+                .presentationDetents([.medium])
+            }
         }
     }
     
-    func saveChanges() {
-        guard let index = watchIndex else { return }
-        watches[index].name = brand
-        watches[index].model = model
-        watches[index].firstWear = firstWear
-        dismiss()
+    func deleteBatteryLog(at offsets: IndexSet) {
+        guard let wIndex = watchIndex else { return }
+        let sortedLog = watches[wIndex].batteryLog.sorted(by: >)
+        for offset in offsets {
+            let dateToRemove = sortedLog[offset]
+            if let logIndex = watches[wIndex].batteryLog.firstIndex(of: dateToRemove) {
+                watches[wIndex].batteryLog.remove(at: logIndex)
+            }
+        }
+        refreshTrigger = UUID()
+    }
+    
+    func deleteServiceLog(at offsets: IndexSet) {
+        guard let wIndex = watchIndex else { return }
+        let sortedLog = watches[wIndex].serviceLog.sorted(by: >)
+        for offset in offsets {
+            let dateToRemove = sortedLog[offset]
+            if let logIndex = watches[wIndex].serviceLog.firstIndex(of: dateToRemove) {
+                watches[wIndex].serviceLog.remove(at: logIndex)
+            }
+        }
+        refreshTrigger = UUID()
     }
     
     func deleteWatch() {

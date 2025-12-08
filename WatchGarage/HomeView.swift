@@ -5,7 +5,13 @@ struct HomeView: View {
     @Binding var showingAddWatch: Bool
     
     var nextBatteryWatch: Watch? {
-        watches.sorted(by: { $0.daysRemaining < $1.daysRemaining }).first
+        watches.filter { $0.movementType == .quartz }
+            .sorted(by: { $0.daysUntilBattery < $1.daysUntilBattery })
+            .first
+    }
+    
+    var nextServiceWatch: Watch? {
+        watches.sorted(by: { $0.daysUntilService < $1.daysUntilService }).first
     }
     
     var body: some View {
@@ -33,7 +39,7 @@ struct HomeView: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(12)
                     
-                    // Next Battery Replacement Card
+                    // Next Battery Replacement Card (only show if there are quartz watches)
                     if let watch = nextBatteryWatch {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Next Battery Replacement")
@@ -50,12 +56,12 @@ struct HomeView: View {
                             }
                             
                             HStack {
-                                Text(formatTimeRemaining(watch.daysRemaining))
+                                Text(formatTimeRemaining(watch.daysUntilBattery))
                                     .font(.headline)
-                                    .foregroundColor(statusColor(watch.status))
+                                    .foregroundColor(statusColor(watch.batteryStatus))
                                 Spacer()
                                 Image(systemName: "battery.25")
-                                    .foregroundColor(statusColor(watch.status))
+                                    .foregroundColor(statusColor(watch.batteryStatus))
                             }
                             .padding(.top, 4)
                         }
@@ -65,27 +71,37 @@ struct HomeView: View {
                         .cornerRadius(12)
                     }
                     
-                    // Next Service Card (Placeholder)
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Next Service")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        
-                        VStack(spacing: 8) {
-                            Image(systemName: "wrench.and.screwdriver")
-                                .font(.title)
-                                .foregroundColor(.secondary)
-                            Text("No service data yet")
+                    // Next Service Card
+                    if let watch = nextServiceWatch {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Next Service Due")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(watch.name)
+                                    .font(.title3)
+                                    .fontWeight(.semibold)
+                                Text(watch.model)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            HStack {
+                                Text(formatTimeRemaining(watch.daysUntilService))
+                                    .font(.headline)
+                                    .foregroundColor(statusColor(watch.serviceStatus))
+                                Spacer()
+                                Image(systemName: "wrench.and.screwdriver")
+                                    .foregroundColor(statusColor(watch.serviceStatus))
+                            }
+                            .padding(.top, 4)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(12)
                     
                     Spacer()
                 }

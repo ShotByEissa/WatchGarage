@@ -1,45 +1,29 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var selectedTab = 0
     @State private var showingAddWatch = false
     @State private var watches: [Watch] = []
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-            HomeView(watches: $watches, showingAddWatch: $showingAddWatch)
-                .tabItem {
-                    Label("Home", systemImage: "house.fill")
-                }
-                .tag(0)
-            
-            BatteryTrackerView(watches: $watches)
-                .tabItem {
-                    Label("Battery", systemImage: "bolt.fill")
-                }
-                .tag(1)
-            
-            MaintenanceTrackerView()
-                .tabItem {
-                    Label("Service", systemImage: "wrench.and.screwdriver.fill")
-                }
-                .tag(2)
-        }
-        .sheet(isPresented: $showingAddWatch) {
-            AddWatchView(watches: $watches)
-        }
+        WatchTrackerView(watches: $watches, showingAddWatch: $showingAddWatch)
+            .sheet(isPresented: $showingAddWatch) {
+                AddWatchView(watches: $watches)
+            }
     }
 }
 
-struct BatteryTrackerView: View {
+struct WatchTrackerView: View {
     @Binding var watches: [Watch]
+    @Binding var showingAddWatch: Bool
     @State private var editingWatchId: Int?
     
     var body: some View {
         NavigationView {
             List {
-                ForEach(watches.sorted(by: { $0.daysRemaining < $1.daysRemaining })) { watch in
-                    VStack(alignment: .leading, spacing: 8) {
+                ForEach(watches.sorted(by: {
+                    min($0.daysUntilBattery, $0.daysUntilService) < min($1.daysUntilBattery, $1.daysUntilService)
+                })) { watch in
+                    VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             VStack(alignment: .leading) {
                                 Text(watch.name)
@@ -49,14 +33,43 @@ struct BatteryTrackerView: View {
                                     .foregroundColor(.secondary)
                             }
                             Spacer()
-                            Text(formatTimeRemaining(watch.daysRemaining))
-                                .foregroundColor(statusColor(watch.status))
-                                .fontWeight(.semibold)
                         }
-                        ProgressView(value: Double(watch.daysRemaining), total: Double(watch.batteryLife))
-                            .tint(statusColor(watch.status))
+                        
+                        // Battery Progress (only for quartz)
+                        if watch.movementType == .quartz {
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text("Battery")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Text(formatTimeRemaining(watch.daysUntilBattery))
+                                        .font(.caption)
+                                        .foregroundColor(statusColor(watch.batteryStatus))
+                                        .fontWeight(.semibold)
+                                }
+                                ProgressView(value: max(0, Double(watch.daysUntilBattery)), total: Double(watch.batteryLife))
+                                    .tint(statusColor(watch.batteryStatus))
+                            }
+                        }
+                        
+                        // Service Progress (all watches)
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("Service")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text(formatTimeRemaining(watch.daysUntilService))
+                                    .font(.caption)
+                                    .foregroundColor(statusColor(watch.serviceStatus))
+                                    .fontWeight(.semibold)
+                            }
+                            ProgressView(value: max(0, Double(watch.daysUntilService)), total: Double(watch.serviceInterval))
+                                .tint(statusColor(watch.serviceStatus))
+                        }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 8)
                     .contentShape(Rectangle())
                     .contextMenu {
                         Button {
@@ -72,13 +85,13 @@ struct BatteryTrackerView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "info.circle")
                                 .foregroundColor(.secondary)
-                            Text("About Battery Estimates")
+                            Text("About Maintenance Estimates")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
                                 .foregroundColor(.secondary)
                         }
                         
-                        Text("Battery life estimates are based on average global usage patterns. Actual battery life varies depending on how often you wear your watch, storage conditions, and other factors. These predictions are meant as helpful reminders, not guarantees.")
+                        Text("Battery and service estimates are based on manufacturer recommendations and average usage patterns. Actual intervals vary by wear frequency, storage conditions, and individual watch characteristics. These are helpful reminders, not guarantees.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -86,7 +99,14 @@ struct BatteryTrackerView: View {
                     .padding(.vertical, 8)
                 }
             }
-            .navigationTitle("Battery Tracker")
+            .navigationTitle("Watch Garage")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showingAddWatch = true }) {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
             .sheet(item: Binding(
                 get: { editingWatchId.map { WatchIdentifier(id: $0) } },
                 set: { editingWatchId = $0?.id }
@@ -133,24 +153,6 @@ struct BatteryTrackerView: View {
 
 struct WatchIdentifier: Identifiable {
     let id: Int
-}
-
-struct MaintenanceTrackerView: View {
-    var body: some View {
-        NavigationView {
-            VStack {
-                Spacer()
-                Image(systemName: "wrench.and.screwdriver")
-                    .font(.largeTitle)
-                    .foregroundColor(.secondary)
-                Text("Coming Soon")
-                    .font(.title3)
-                    .foregroundColor(.secondary)
-                Spacer()
-            }
-            .navigationTitle("Service History")
-        }
-    }
 }
 
 #Preview {
