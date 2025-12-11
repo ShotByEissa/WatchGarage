@@ -5,10 +5,27 @@ struct ContentView: View {
     @State private var watches: [Watch] = []
     
     var body: some View {
-        WatchTrackerView(watches: $watches, showingAddWatch: $showingAddWatch)
+        WatchTrackerView(watches: $watches, showingAddWatch: $showingAddWatch, saveWatches: saveWatches)
             .sheet(isPresented: $showingAddWatch) {
-                AddWatchView(watches: $watches)
+                AddWatchView(watches: $watches, saveWatches: saveWatches)
             }
+            .onAppear {
+                loadWatches()
+            }
+    }
+    
+    func loadWatches() {
+        if let data = UserDefaults.standard.data(forKey: "watches") {
+            if let decoded = try? JSONDecoder().decode([Watch].self, from: data) {
+                watches = decoded
+            }
+        }
+    }
+    
+    func saveWatches() {
+        if let encoded = try? JSONEncoder().encode(watches) {
+            UserDefaults.standard.set(encoded, forKey: "watches")
+        }
     }
 }
 
@@ -16,11 +33,26 @@ struct WatchTrackerView: View {
     @Binding var watches: [Watch]
     @Binding var showingAddWatch: Bool
     @State private var editingWatchId: Int?
+    @State private var lastRefresh = Date()
+    let saveWatches: () -> Void
     
     var body: some View {
         NavigationStack {
             ZStack {
                 List {
+                    // Last Updated Section
+                    Section {
+                        HStack {
+                            Image(systemName: "clock")
+                                .foregroundStyle(.secondary)
+                                .font(.caption)
+                            Text("Last updated: \(lastRefresh, style: .time) on \(lastRefresh, style: .date)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                    
                     ForEach(watches.sorted(by: {
                         min($0.daysUntilBattery, $0.daysUntilService) < min($1.daysUntilBattery, $1.daysUntilService)
                     })) { watch in
@@ -99,6 +131,7 @@ struct WatchTrackerView: View {
                         }
                         .padding(.vertical, 8)
                     }
+                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                     
                     // Spacer for floating button
                     Color.clear
@@ -106,11 +139,17 @@ struct WatchTrackerView: View {
                         .listRowBackground(Color.clear)
                 }
                 .navigationTitle("Watch Garage")
+                .refreshable {
+                    refreshData()
+                }
+                .onAppear {
+                    refreshData()
+                }
                 .sheet(item: Binding(
                     get: { editingWatchId.map { WatchIdentifier(id: $0) } },
                     set: { editingWatchId = $0?.id }
                 )) { identifier in
-                    EditWatchView(watches: $watches, watchId: identifier.id)
+                    EditWatchView(watches: $watches, watchId: identifier.id, saveWatches: saveWatches)
                 }
                 
                 // Floating Add Button
@@ -133,6 +172,10 @@ struct WatchTrackerView: View {
                 }
             }
         }
+    }
+    
+    func refreshData() {
+        lastRefresh = Date()
     }
     
     func formatTimeRemaining(_ days: Int) -> String {

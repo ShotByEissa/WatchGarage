@@ -3,6 +3,7 @@ import SwiftUI
 struct AddWatchView: View {
     @Environment(\.dismiss) var dismiss
     @Binding var watches: [Watch]
+    let saveWatches: () -> Void
     
     @State private var brand = ""
     @State private var model = ""
@@ -75,10 +76,13 @@ struct AddWatchView: View {
         // Schedule notifications for the new watch
         NotificationManager.shared.scheduleNotifications(for: newWatch)
         
+        // Save after adding
+        saveWatches()
+        
         dismiss()
     }
 }
 
 #Preview {
-    AddWatchView(watches: .constant([]))
+    AddWatchView(watches: .constant([]), saveWatches: {})
 }

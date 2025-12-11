@@ -4,6 +4,7 @@ struct EditWatchView: View {
     @Environment(\.dismiss) var dismiss
     @Binding var watches: [Watch]
     let watchId: Int
+    let saveWatches: () -> Void
     
     @State private var showingDeleteAlert = false
     @State private var showingBatteryDatePicker = false
@@ -171,6 +172,7 @@ struct EditWatchView: View {
                                     watches[index].batteryLog.append(newBatteryDate)
                                     // Reschedule notifications with updated battery log
                                     NotificationManager.shared.scheduleNotifications(for: watches[index])
+                                    saveWatches()
                                     refreshTrigger = UUID()
                                 }
                                 showingBatteryDatePicker = false
@@ -202,6 +204,7 @@ struct EditWatchView: View {
                                     watches[index].serviceLog.append(newServiceDate)
                                     // Reschedule notifications with updated service log
                                     NotificationManager.shared.scheduleNotifications(for: watches[index])
+                                    saveWatches()
                                     refreshTrigger = UUID()
                                 }
                                 showingServiceDatePicker = false
@@ -225,6 +228,7 @@ struct EditWatchView: View {
         }
         // Reschedule notifications after deleting log entry
         NotificationManager.shared.scheduleNotifications(for: watches[wIndex])
+        saveWatches()
         refreshTrigger = UUID()
     }
     
@@ -239,6 +243,7 @@ struct EditWatchView: View {
         }
         // Reschedule notifications after deleting log entry
         NotificationManager.shared.scheduleNotifications(for: watches[wIndex])
+        saveWatches()
         refreshTrigger = UUID()
     }
     
@@ -247,6 +252,7 @@ struct EditWatchView: View {
         // Cancel all notifications for this watch before deleting
         NotificationManager.shared.cancelNotifications(for: watches[index])
         watches.remove(at: index)
+        saveWatches()
         dismiss()
     }
 }

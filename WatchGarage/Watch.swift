@@ -1,6 +1,6 @@
 import Foundation
 
-struct Watch: Identifiable {
+struct Watch: Identifiable, Codable {
     let id: Int
     var name: String
     var model: String
@@ -75,7 +75,7 @@ extension Watch: Hashable {
     }
 }
 
-enum BatteryStatus {
+enum BatteryStatus: Codable {
     case critical, warning, caution, good
     
     var color: String {
@@ -97,7 +97,7 @@ enum BatteryStatus {
     }
 }
 
-enum MovementType: String, CaseIterable {
+enum MovementType: String, CaseIterable, Codable {
     case quartz = "Quartz"
     case mechanical = "Mechanical"
     case automatic = "Automatic"
