@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 struct EditWatchView: View {
     @Environment(\.dismiss) var dismiss
@@ -12,6 +13,8 @@ struct EditWatchView: View {
     @State private var newBatteryDate = Date()
     @State private var newServiceDate = Date()
     @State private var refreshTrigger = UUID()
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var showingImageDeleteAlert = false
     
     private var watchIndex: Int? {
         watches.firstIndex(where: { $0.id == watchId })
@@ -25,6 +28,71 @@ struct EditWatchView: View {
     var body: some View {
         NavigationView {
             Form {
+                // Watch Photo Section
+                Section(header: Text("WATCH PHOTO")) {
+                    if let backgroundImage = watch?.backgroundImage {
+                        HStack {
+                            Image(uiImage: backgroundImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 60, height: 60)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            
+                            VStack(alignment: .leading) {
+                                Text("Background Image")
+                                    .font(.headline)
+                                Text("Tap to change or remove")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Button(role: .destructive) {
+                                showingImageDeleteAlert = true
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundStyle(.red)
+                            }
+                        }
+                    } else {
+                        PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                            HStack {
+                                Image(systemName: "photo.badge.plus")
+                                    .font(.largeTitle)
+                                    .foregroundStyle(.blue)
+                                    .frame(width: 60, height: 60)
+                                
+                                VStack(alignment: .leading) {
+                                    Text("Add Photo")
+                                        .font(.headline)
+                                    Text("Optional background image")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    
+                    if watch?.backgroundImage != nil {
+                        PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                            HStack {
+                                Image(systemName: "photo")
+                                    .foregroundStyle(.blue)
+                                Text("Change Photo")
+                            }
+                        }
+                    }
+                }
+                .onChange(of: selectedPhoto) { oldValue, newValue in
+                    Task {
+                        if let data = try? await newValue?.loadTransferable(type: Data.self),
+                           let image = UIImage(data: data) {
+                            updateWatchImage(image)
+                        }
+                    }
+                }
+                
                 Section(header: Text("WATCH DETAILS")) {
                     HStack {
                         Text("Brand")
@@ -150,6 +218,14 @@ struct EditWatchView: View {
             } message: {
                 Text("This action cannot be undone.")
             }
+            .alert("Remove Photo?", isPresented: $showingImageDeleteAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Remove", role: .destructive) {
+                    removeWatchImage()
+                }
+            } message: {
+                Text("This will remove the background image from this watch card.")
+            }
             .sheet(isPresented: $showingBatteryDatePicker) {
                 NavigationView {
                     VStack {
@@ -170,7 +246,6 @@ struct EditWatchView: View {
                             Button("Add") {
                                 if let index = watchIndex {
                                     watches[index].batteryLog.append(newBatteryDate)
-                                    // Reschedule notifications with updated battery log
                                     NotificationManager.shared.scheduleNotifications(for: watches[index])
                                     saveWatches()
                                     refreshTrigger = UUID()
@@ -202,7 +277,6 @@ struct EditWatchView: View {
                             Button("Add") {
                                 if let index = watchIndex {
                                     watches[index].serviceLog.append(newServiceDate)
-                                    // Reschedule notifications with updated service log
                                     NotificationManager.shared.scheduleNotifications(for: watches[index])
                                     saveWatches()
                                     refreshTrigger = UUID()
@@ -217,6 +291,89 @@ struct EditWatchView: View {
         }
     }
     
+    func autoCropImage(_ image: UIImage) -> UIImage {
+        let targetSize = CGSize(width: 1083, height: 636)
+        let targetAspect = targetSize.width / targetSize.height
+        let imageAspect = image.size.width / image.size.height
+        
+        var cropRect: CGRect
+        
+        if imageAspect > targetAspect {
+            let cropWidth = image.size.height * targetAspect
+            let cropX = (image.size.width - cropWidth) / 2
+            cropRect = CGRect(x: cropX, y: 0, width: cropWidth, height: image.size.height)
+        } else {
+            let cropHeight = image.size.width / targetAspect
+            let cropY = (image.size.height - cropHeight) / 2
+            cropRect = CGRect(x: 0, y: cropY, width: image.size.width, height: cropHeight)
+        }
+        
+        guard let croppedCGImage = image.cgImage?.cropping(to: cropRect) else {
+            return image
+        }
+        
+        let croppedImage = UIImage(cgImage: croppedCGImage)
+        
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let scaledImage = renderer.image { context in
+            croppedImage.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+        
+        return scaledImage
+    }
+    
+    func updateWatchImage(_ image: UIImage) {
+        guard let index = watchIndex else { return }
+        
+        let croppedImage = autoCropImage(image)
+        
+        if let oldImageName = watches[index].imageName {
+            deleteImageFile(oldImageName)
+        }
+        
+        let newImageName = "watch_\(watches[index].id).jpg"
+        saveImage(croppedImage, filename: newImageName)
+        
+        watches[index].imageName = newImageName
+        saveWatches()
+        refreshTrigger = UUID()
+    }
+    
+    func removeWatchImage() {
+        guard let index = watchIndex else { return }
+        
+        if let imageName = watches[index].imageName {
+            deleteImageFile(imageName)
+        }
+        
+        watches[index].imageName = nil
+        saveWatches()
+        refreshTrigger = UUID()
+    }
+    
+    func saveImage(_ image: UIImage, filename: String) {
+        let fileManager = FileManager.default
+        guard let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return
+        }
+        
+        let fileURL = documentsDirectory.appendingPathComponent(filename)
+        
+        if let imageData = image.jpegData(compressionQuality: 0.8) {
+            try? imageData.write(to: fileURL)
+        }
+    }
+    
+    func deleteImageFile(_ filename: String) {
+        let fileManager = FileManager.default
+        guard let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return
+        }
+        
+        let fileURL = documentsDirectory.appendingPathComponent(filename)
+        try? fileManager.removeItem(at: fileURL)
+    }
+    
     func deleteBatteryLog(at offsets: IndexSet) {
         guard let wIndex = watchIndex else { return }
         let sortedLog = watches[wIndex].batteryLog.sorted(by: >)
@@ -226,7 +383,6 @@ struct EditWatchView: View {
                 watches[wIndex].batteryLog.remove(at: logIndex)
             }
         }
-        // Reschedule notifications after deleting log entry
         NotificationManager.shared.scheduleNotifications(for: watches[wIndex])
         saveWatches()
         refreshTrigger = UUID()
@@ -241,7 +397,6 @@ struct EditWatchView: View {
                 watches[wIndex].serviceLog.remove(at: logIndex)
             }
         }
-        // Reschedule notifications after deleting log entry
         NotificationManager.shared.scheduleNotifications(for: watches[wIndex])
         saveWatches()
         refreshTrigger = UUID()
@@ -249,7 +404,11 @@ struct EditWatchView: View {
     
     func deleteWatch() {
         guard let index = watchIndex else { return }
-        // Cancel all notifications for this watch before deleting
+        
+        if let imageName = watches[index].imageName {
+            deleteImageFile(imageName)
+        }
+        
         NotificationManager.shared.cancelNotifications(for: watches[index])
         watches.remove(at: index)
         saveWatches()

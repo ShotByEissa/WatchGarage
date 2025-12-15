@@ -3,11 +3,13 @@ import SwiftUI
 struct ContentView: View {
     @State private var showingAddWatch = false
     @State private var watches: [Watch] = []
+    @State private var viewId = UUID()
     
     var body: some View {
-        WatchTrackerView(watches: $watches, showingAddWatch: $showingAddWatch, saveWatches: saveWatches)
+        WatchTrackerView(watches: $watches, showingAddWatch: $showingAddWatch, saveWatchesOnly: saveWatchesOnly, forceRefresh: forceRefresh)
+            .id(viewId)
             .sheet(isPresented: $showingAddWatch) {
-                AddWatchView(watches: $watches, saveWatches: saveWatches)
+                AddWatchView(watches: $watches, saveWatches: saveWatchesOnly)
             }
             .onAppear {
                 loadWatches()
@@ -22,10 +24,14 @@ struct ContentView: View {
         }
     }
     
-    func saveWatches() {
+    func saveWatchesOnly() {
         if let encoded = try? JSONEncoder().encode(watches) {
             UserDefaults.standard.set(encoded, forKey: "watches")
         }
+    }
+    
+    func forceRefresh() {
+        viewId = UUID()
     }
 }
 
@@ -34,7 +40,8 @@ struct WatchTrackerView: View {
     @Binding var showingAddWatch: Bool
     @State private var editingWatchId: Int?
     @State private var lastRefresh = Date()
-    let saveWatches: () -> Void
+    let saveWatchesOnly: () -> Void
+    let forceRefresh: () -> Void
     
     var sortedWatches: [Watch] {
         watches.sorted(by: {
@@ -130,9 +137,15 @@ struct WatchTrackerView: View {
             }
             .sheet(item: Binding(
                 get: { editingWatchId.map { WatchIdentifier(id: $0) } },
-                set: { editingWatchId = $0?.id }
+                set: {
+                    if $0 == nil {
+                        // Sheet was dismissed, force refresh
+                        forceRefresh()
+                    }
+                    editingWatchId = $0?.id
+                }
             )) { identifier in
-                EditWatchView(watches: $watches, watchId: identifier.id, saveWatches: saveWatches)
+                EditWatchView(watches: $watches, watchId: identifier.id, saveWatches: saveWatchesOnly)
             }
         }
     }

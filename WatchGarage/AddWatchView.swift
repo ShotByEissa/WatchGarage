@@ -16,47 +16,43 @@ struct AddWatchView: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var selectedImage: UIImage?
     @State private var croppedImage: UIImage?
-    @State private var showingCropView = false
     
     var body: some View {
         NavigationView {
             Form {
                 Section(header: Text("WATCH PHOTO")) {
-                    Button(action: {}) {
-                        PhotosPicker(selection: $selectedPhoto, matching: .images) {
-                            HStack {
-                                if let image = croppedImage ?? selectedImage {
-                                    Image(uiImage: image)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 60, height: 60)
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                                } else {
-                                    Image(systemName: "photo.badge.plus")
-                                        .font(.largeTitle)
-                                        .foregroundStyle(.blue)
-                                        .frame(width: 60, height: 60)
-                                }
-                                VStack(alignment: .leading) {
-                                    Text(selectedImage == nil ? "Add Photo" : (croppedImage == nil ? "Crop Photo" : "Change Photo"))
-                                        .font(.headline)
-                                    Text("Optional background image")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
+                    PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                        HStack {
+                            if let image = croppedImage ?? selectedImage {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 60, height: 60)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            } else {
+                                Image(systemName: "photo.badge.plus")
+                                    .font(.largeTitle)
+                                    .foregroundStyle(.blue)
+                                    .frame(width: 60, height: 60)
                             }
-                        }
-                        .onChange(of: selectedPhoto) { oldValue, newValue in
-                            Task {
-                                if let data = try? await newValue?.loadTransferable(type: Data.self) {
-                                    selectedImage = UIImage(data: data)
-                                    croppedImage = nil // Reset crop when new image selected
-                                    showingCropView = true
-                                }
+                            VStack(alignment: .leading) {
+                                Text(selectedImage == nil ? "Add Photo" : "Change Photo")
+                                    .font(.headline)
+                                Text("Optional background image")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
-                    .buttonStyle(PlainButtonStyle())
+                    .onChange(of: selectedPhoto) { oldValue, newValue in
+                        Task {
+                            if let data = try? await newValue?.loadTransferable(type: Data.self),
+                               let image = UIImage(data: data) {
+                                selectedImage = image
+                                croppedImage = autoCropImage(image)
+                            }
+                        }
+                    }
                 }
                 
                 Section(header: Text("WATCH DETAILS")) {
@@ -85,7 +81,6 @@ struct AddWatchView: View {
                     }
                 }
                 
-                // Custom interval fields - only show if toggle is on
                 if useCustomInterval {
                     Section(header: Text("CUSTOM SERVICE INTERVAL")) {
                         HStack {
@@ -140,22 +135,6 @@ struct AddWatchView: View {
                     .disabled(!isFormValid())
                 }
             }
-            .sheet(isPresented: $showingCropView) {
-                if let image = selectedImage {
-                    CropImageView(
-                        image: image,
-                        onCrop: { cropped in
-                            croppedImage = cropped
-                            showingCropView = false
-                        },
-                        onCancel: {
-                            selectedImage = nil
-                            selectedPhoto = nil
-                            showingCropView = false
-                        }
-                    )
-                }
-            }
         }
     }
     
@@ -173,19 +152,48 @@ struct AddWatchView: View {
         return true
     }
     
+    func autoCropImage(_ image: UIImage) -> UIImage {
+        let targetSize = CGSize(width: 1083, height: 636) // 3x scale of card dimensions
+        let targetAspect = targetSize.width / targetSize.height
+        let imageAspect = image.size.width / image.size.height
+        
+        var cropRect: CGRect
+        
+        if imageAspect > targetAspect {
+            let cropWidth = image.size.height * targetAspect
+            let cropX = (image.size.width - cropWidth) / 2
+            cropRect = CGRect(x: cropX, y: 0, width: cropWidth, height: image.size.height)
+        } else {
+            let cropHeight = image.size.width / targetAspect
+            let cropY = (image.size.height - cropHeight) / 2
+            cropRect = CGRect(x: 0, y: cropY, width: image.size.width, height: cropHeight)
+        }
+        
+        guard let croppedCGImage = image.cgImage?.cropping(to: cropRect) else {
+            return image
+        }
+        
+        let croppedImage = UIImage(cgImage: croppedCGImage)
+        
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let scaledImage = renderer.image { context in
+            croppedImage.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+        
+        return scaledImage
+    }
+    
     func addWatch() {
         let newId = (watches.map { $0.id }.max() ?? 0) + 1
         
-        // Calculate custom service interval if toggle is on
         var customInterval: Int? = nil
         if useCustomInterval {
             if let min = Int(minYears), let max = Int(maxYears) {
                 let avgYears = Double(min + max) / 2.0
-                customInterval = Int(avgYears * 365.25) // Convert years to days
+                customInterval = Int(avgYears * 365.25)
             }
         }
         
-        // Save the cropped image if one exists
         var imageName: String? = nil
         if let image = croppedImage {
             imageName = "watch_\(newId).jpg"
@@ -206,12 +214,8 @@ struct AddWatchView: View {
         )
         watches.append(newWatch)
         
-        // Schedule notifications for the new watch
         NotificationManager.shared.scheduleNotifications(for: newWatch)
-        
-        // Save after adding
         saveWatches()
-        
         dismiss()
     }
     
