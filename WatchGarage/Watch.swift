@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 struct Watch: Identifiable, Codable {
     let id: Int
@@ -10,6 +11,7 @@ struct Watch: Identifiable, Codable {
     var batteryLog: [Date] = []
     var serviceLog: [Date] = []
     var customServiceInterval: Int? // in days, overrides default if set
+    var imageName: String? // filename for the watch photo
     
     // Service interval in days based on movement type
     var serviceInterval: Int {
@@ -67,6 +69,18 @@ struct Watch: Identifiable, Codable {
         if daysUntilService <= 90 { return .warning }
         if daysUntilService <= 180 { return .caution }
         return .good
+    }
+    
+    // Get the actual image
+    var backgroundImage: UIImage? {
+        guard let imageName = imageName else { return nil }
+        let fileManager = FileManager.default
+        guard let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let imageURL = documentsDirectory.appendingPathComponent(imageName)
+        guard let imageData = try? Data(contentsOf: imageURL) else { return nil }
+        return UIImage(data: imageData)
     }
 }
 

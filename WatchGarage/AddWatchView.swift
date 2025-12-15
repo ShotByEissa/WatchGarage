@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 struct AddWatchView: View {
     @Environment(\.dismiss) var dismiss
@@ -12,10 +13,45 @@ struct AddWatchView: View {
     @State private var useCustomInterval = false
     @State private var minYears = ""
     @State private var maxYears = ""
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var selectedImage: UIImage?
     
     var body: some View {
         NavigationView {
             Form {
+                Section(header: Text("WATCH PHOTO")) {
+                    PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                        HStack {
+                            if let image = selectedImage {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 60, height: 60)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            } else {
+                                Image(systemName: "photo.badge.plus")
+                                    .font(.largeTitle)
+                                    .foregroundStyle(.blue)
+                                    .frame(width: 60, height: 60)
+                            }
+                            VStack(alignment: .leading) {
+                                Text(selectedImage == nil ? "Add Photo" : "Change Photo")
+                                    .font(.headline)
+                                Text("Optional background image")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .onChange(of: selectedPhoto) { oldValue, newValue in
+                        Task {
+                            if let data = try? await newValue?.loadTransferable(type: Data.self) {
+                                selectedImage = UIImage(data: data)
+                            }
+                        }
+                    }
+                }
+                
                 Section(header: Text("WATCH DETAILS")) {
                     TextField("Brand", text: $brand)
                     TextField("Model", text: $model)
@@ -126,6 +162,13 @@ struct AddWatchView: View {
             }
         }
         
+        // Save the image if one was selected
+        var imageName: String? = nil
+        if let image = selectedImage {
+            imageName = "watch_\(newId).jpg"
+            saveImage(image, filename: imageName!)
+        }
+        
         let newWatch = Watch(
             id: newId,
             name: brand,
@@ -135,7 +178,8 @@ struct AddWatchView: View {
             movementType: movementType,
             batteryLog: [],
             serviceLog: [],
-            customServiceInterval: customInterval
+            customServiceInterval: customInterval,
+            imageName: imageName
         )
         watches.append(newWatch)
         
@@ -146,6 +190,19 @@ struct AddWatchView: View {
         saveWatches()
         
         dismiss()
+    }
+    
+    func saveImage(_ image: UIImage, filename: String) {
+        let fileManager = FileManager.default
+        guard let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return
+        }
+        
+        let fileURL = documentsDirectory.appendingPathComponent(filename)
+        
+        if let imageData = image.jpegData(compressionQuality: 0.8) {
+            try? imageData.write(to: fileURL)
+        }
     }
 }
 

@@ -92,13 +92,24 @@ struct WatchTrackerView: View {
                     }
                     .frame(height: 100)
                     
-                    // Two Column Layout for Watches
-                    TwoColumnMasonryView(
-                        watches: sortedWatches,
-                        onTap: { watchId in
-                            editingWatchId = watchId
+                    // Conditional Layout - Grid for 2+, Full-width for 1
+                    if sortedWatches.count == 1 {
+                        // Single full-width card
+                        if let watch = sortedWatches.first {
+                            WatchCard(watch: watch, isQuartz: watch.movementType == .quartz)
+                                .onTapGesture {
+                                    editingWatchId = watch.id
+                                }
                         }
-                    )
+                    } else {
+                        // Two Column Grid for multiple watches
+                        TwoColumnMasonryView(
+                            watches: sortedWatches,
+                            onTap: { watchId in
+                                editingWatchId = watchId
+                            }
+                        )
+                    }
                     
                     // Bottom padding
                     Color.clear.frame(height: 20)
@@ -174,7 +185,7 @@ struct TwoColumnMasonryView: View {
         var rightHeight: CGFloat = 0
         
         for watch in watches {
-            let cardHeight: CGFloat = watch.movementType == .quartz ? 292 : 140
+            let cardHeight: CGFloat = watch.movementType == .quartz ? 212 : 100
             
             if leftHeight <= rightHeight {
                 left.append(watch)
@@ -194,8 +205,8 @@ struct WatchCard: View {
     let isQuartz: Bool
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Watch Name
+        VStack(alignment: .leading, spacing: 0) {
+            // Watch Name at top
             VStack(alignment: .leading, spacing: 2) {
                 Text(watch.name)
                     .font(.title3)
@@ -207,57 +218,74 @@ struct WatchCard: View {
                     .lineLimit(1)
             }
             
+            // Push everything down
             Spacer(minLength: 0)
             
-            // Battery Progress (only for quartz - makes this a 1x2 card)
-            if isQuartz {
-                VStack(alignment: .leading, spacing: 6) {
+            // Progress bars at bottom
+            VStack(alignment: .leading, spacing: 8) {
+                // Battery Progress (only for quartz)
+                if isQuartz {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Image(systemName: "battery.25")
+                                .foregroundStyle(statusColor(watch.batteryStatus))
+                                .font(.caption)
+                            Text("Battery")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                            Spacer()
+                            Text(formatTimeRemaining(watch.daysUntilBattery))
+                                .font(.caption)
+                                .foregroundStyle(statusColor(watch.batteryStatus))
+                                .fontWeight(.semibold)
+                        }
+                        
+                        ProgressView(value: max(0, Double(watch.daysUntilBattery)), total: Double(watch.batteryLife))
+                            .tint(statusColor(watch.batteryStatus))
+                            .scaleEffect(x: 1, y: 1.5, anchor: .center)
+                    }
+                }
+                
+                // Service Progress (all watches)
+                VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Image(systemName: "battery.25")
-                            .foregroundStyle(statusColor(watch.batteryStatus))
+                        Image(systemName: "wrench.and.screwdriver")
+                            .foregroundStyle(statusColor(watch.serviceStatus))
                             .font(.caption)
-                        Text("Battery")
+                        Text("Service")
                             .font(.caption)
                             .fontWeight(.semibold)
                         Spacer()
-                        Text(formatTimeRemaining(watch.daysUntilBattery))
+                        Text(formatTimeRemaining(watch.daysUntilService))
                             .font(.caption)
-                            .foregroundStyle(statusColor(watch.batteryStatus))
+                            .foregroundStyle(statusColor(watch.serviceStatus))
                             .fontWeight(.semibold)
                     }
                     
-                    ProgressView(value: max(0, Double(watch.daysUntilBattery)), total: Double(watch.batteryLife))
-                        .tint(statusColor(watch.batteryStatus))
-                        .scaleEffect(x: 1, y: 2, anchor: .center)
+                    ProgressView(value: max(0, Double(watch.daysUntilService)), total: Double(watch.serviceInterval))
+                        .tint(statusColor(watch.serviceStatus))
+                        .scaleEffect(x: 1, y: 1.5, anchor: .center)
                 }
-            }
-            
-            // Service Progress (all watches)
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Image(systemName: "wrench.and.screwdriver")
-                        .foregroundStyle(statusColor(watch.serviceStatus))
-                        .font(.caption)
-                    Text("Service")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                    Spacer()
-                    Text(formatTimeRemaining(watch.daysUntilService))
-                        .font(.caption)
-                        .foregroundStyle(statusColor(watch.serviceStatus))
-                        .fontWeight(.semibold)
-                }
-                
-                ProgressView(value: max(0, Double(watch.daysUntilService)), total: Double(watch.serviceInterval))
-                    .tint(statusColor(watch.serviceStatus))
-                    .scaleEffect(x: 1, y: 2, anchor: .center)
             }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .frame(height: isQuartz ? 292 : 140, alignment: .top)
-        .background(Color(.systemGray6))
+        .frame(height: isQuartz ? 212 : 100, alignment: .top)
+        .background(
+            ZStack {
+                Color(.systemGray6)
+                
+                if let backgroundImage = watch.backgroundImage {
+                    Image(uiImage: backgroundImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .opacity(0.08)
+                }
+            }
+        )
         .cornerRadius(12)
+        .clipped()
     }
     
     func formatTimeRemaining(_ days: Int) -> String {
