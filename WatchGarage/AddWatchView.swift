@@ -15,41 +15,48 @@ struct AddWatchView: View {
     @State private var maxYears = ""
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var selectedImage: UIImage?
+    @State private var croppedImage: UIImage?
+    @State private var showingCropView = false
     
     var body: some View {
         NavigationView {
             Form {
                 Section(header: Text("WATCH PHOTO")) {
-                    PhotosPicker(selection: $selectedPhoto, matching: .images) {
-                        HStack {
-                            if let image = selectedImage {
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 60, height: 60)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                            } else {
-                                Image(systemName: "photo.badge.plus")
-                                    .font(.largeTitle)
-                                    .foregroundStyle(.blue)
-                                    .frame(width: 60, height: 60)
+                    Button(action: {}) {
+                        PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                            HStack {
+                                if let image = croppedImage ?? selectedImage {
+                                    Image(uiImage: image)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 60, height: 60)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                } else {
+                                    Image(systemName: "photo.badge.plus")
+                                        .font(.largeTitle)
+                                        .foregroundStyle(.blue)
+                                        .frame(width: 60, height: 60)
+                                }
+                                VStack(alignment: .leading) {
+                                    Text(selectedImage == nil ? "Add Photo" : (croppedImage == nil ? "Crop Photo" : "Change Photo"))
+                                        .font(.headline)
+                                    Text("Optional background image")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
-                            VStack(alignment: .leading) {
-                                Text(selectedImage == nil ? "Add Photo" : "Change Photo")
-                                    .font(.headline)
-                                Text("Optional background image")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                        }
+                        .onChange(of: selectedPhoto) { oldValue, newValue in
+                            Task {
+                                if let data = try? await newValue?.loadTransferable(type: Data.self) {
+                                    selectedImage = UIImage(data: data)
+                                    croppedImage = nil // Reset crop when new image selected
+                                    showingCropView = true
+                                }
                             }
                         }
                     }
-                    .onChange(of: selectedPhoto) { oldValue, newValue in
-                        Task {
-                            if let data = try? await newValue?.loadTransferable(type: Data.self) {
-                                selectedImage = UIImage(data: data)
-                            }
-                        }
-                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
                 
                 Section(header: Text("WATCH DETAILS")) {
@@ -133,6 +140,22 @@ struct AddWatchView: View {
                     .disabled(!isFormValid())
                 }
             }
+            .sheet(isPresented: $showingCropView) {
+                if let image = selectedImage {
+                    CropImageView(
+                        image: image,
+                        onCrop: { cropped in
+                            croppedImage = cropped
+                            showingCropView = false
+                        },
+                        onCancel: {
+                            selectedImage = nil
+                            selectedPhoto = nil
+                            showingCropView = false
+                        }
+                    )
+                }
+            }
         }
     }
     
@@ -162,9 +185,9 @@ struct AddWatchView: View {
             }
         }
         
-        // Save the image if one was selected
+        // Save the cropped image if one exists
         var imageName: String? = nil
-        if let image = selectedImage {
+        if let image = croppedImage {
             imageName = "watch_\(newId).jpg"
             saveImage(image, filename: imageName!)
         }
