@@ -9,9 +9,14 @@ struct Watch: Identifiable, Codable {
     var movementType: MovementType
     var batteryLog: [Date] = []
     var serviceLog: [Date] = []
+    var customServiceInterval: Int? // in days, overrides default if set
     
     // Service interval in days based on movement type
     var serviceInterval: Int {
+        if let customInterval = customServiceInterval {
+            return customInterval
+        }
+        
         switch movementType {
         case .quartz:
             return 912 // 2.5 years

@@ -9,6 +9,9 @@ struct AddWatchView: View {
     @State private var model = ""
     @State private var firstWear = Date()
     @State private var movementType: MovementType = .quartz
+    @State private var useCustomInterval = false
+    @State private var minYears = ""
+    @State private var maxYears = ""
     
     var body: some View {
         NavigationView {
@@ -29,6 +32,44 @@ struct AddWatchView: View {
                     Text(movementType.servicingMessage)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    
+                    Toggle(isOn: $useCustomInterval) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "wrench.adjustable")
+                                .foregroundStyle(.orange)
+                            Text("Custom Service Interval")
+                        }
+                    }
+                }
+                
+                // Custom interval fields - only show if toggle is on
+                if useCustomInterval {
+                    Section(header: Text("CUSTOM SERVICE INTERVAL")) {
+                        HStack {
+                            Text("Min Years")
+                            Spacer()
+                            TextField("2", text: $minYears)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 60)
+                        }
+                        
+                        HStack {
+                            Text("Max Years")
+                            Spacer()
+                            TextField("3", text: $maxYears)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 60)
+                        }
+                        
+                        if let min = Int(minYears), let max = Int(maxYears), min > 0, max > 0 {
+                            let avgYears = Double(min + max) / 2.0
+                            Text("Average: \(String(format: "%.1f", avgYears)) years")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
                 
                 Section(header: Text("BATTERY INFO")) {
@@ -53,14 +94,38 @@ struct AddWatchView: View {
                     Button("Add") {
                         addWatch()
                     }
-                    .disabled(brand.isEmpty || model.isEmpty)
+                    .disabled(!isFormValid())
                 }
             }
         }
     }
     
+    func isFormValid() -> Bool {
+        if brand.isEmpty || model.isEmpty {
+            return false
+        }
+        
+        if useCustomInterval {
+            guard let min = Int(minYears), let max = Int(maxYears), min > 0, max > 0 else {
+                return false
+            }
+        }
+        
+        return true
+    }
+    
     func addWatch() {
         let newId = (watches.map { $0.id }.max() ?? 0) + 1
+        
+        // Calculate custom service interval if toggle is on
+        var customInterval: Int? = nil
+        if useCustomInterval {
+            if let min = Int(minYears), let max = Int(maxYears) {
+                let avgYears = Double(min + max) / 2.0
+                customInterval = Int(avgYears * 365.25) // Convert years to days
+            }
+        }
+        
         let newWatch = Watch(
             id: newId,
             name: brand,
@@ -69,7 +134,8 @@ struct AddWatchView: View {
             batteryLife: 730,
             movementType: movementType,
             batteryLog: [],
-            serviceLog: []
+            serviceLog: [],
+            customServiceInterval: customInterval
         )
         watches.append(newWatch)
         
